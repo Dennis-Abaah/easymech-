@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>EASY MECH - Handymen</title>
+<style>
+:root{
+  --primary:#0b63ce;
+  --accent:#ff6a00;
+  --open-green:#F1AA9B ;
+  --closed-orange:#48426D;
+  --card-shadow: 0 6px 18px rgba(11,99,206,0.06);
+}
+body{
+  margin:0;
+  font-family:Inter,system-ui,Arial,Helvetica,sans-serif;
+  background:#48426D;
+  padding-top:72px;
+  color:#48426D;
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+}
+header{
+  position:fixed;
+  top:0; left:0; right:0;
+  height:55px;
+  background:var(--primary);
+  background-color:#312C51 ;
+  color:#F1AA9B;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:20px;
+  font-weight:700;
+  box-shadow:0 2px 10px rgba(0,0,0,.12);
+  z-index:999;
+}
+.wrap{
+  width:94%;
+  max-width:1200px;
+  margin:14px auto;
+  flex:1;
+  display:flex;
+  flex-direction:column;
+}
+.search{
+  display:flex;
+  justify-content:center;
+  margin:10px 0;
+}
+.search input{
+  width:100%;
+  max-width:720px;
+  padding:12px 16px;
+  border-radius:12px;
+  border:1px solid #d2dce8;
+  font-size:15px;
+  outline:none;
+  box-shadow:0 2px 6px rgba(0,0,0,0.03);
+  background-color: #F0C38E;
+}
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+  gap:18px;
+  margin-top:8px;
+  padding-bottom:60px; /* added spacing so last row doesn't touch footer */
+}
+.card{
+  background:#F0C38E;
+  border-radius:12px;
+  overflow:hidden;
+  cursor:pointer;
+  box-shadow:var(--card-shadow);
+  position:relative;
+  transition:transform .16s ease;
+}
+.card:hover{transform:translateY(-6px);}
+.card .imgwrap{
+  position:relative;
+  width:100%;
+  height:180px;
+  overflow:hidden;
+  background:#eceff6;
+}
+.card img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+}
+.status-badge{
+  position:absolute;
+  left:10px;
+  top:10px;
+  padding:6px 10px;
+  border-radius:8px;
+  color:#fff;
+  font-weight:700;
+  font-size:13px;
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  box-shadow:0 4px 10px rgba(0,0,0,0.12);
+}
+.status-open{background:var(--open-green);}
+.status-closed{background:var(--closed-orange);}
+.info{padding:12px;}
+.info h3{margin:0 0 6px;font-size:18px;}
+.info p{margin:4px 0;color:#556; font-size:14px;}
+.location{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  color:#6b7280;
+  font-size:13px;
+}
+.loc-icon{
+  width:16px;
+  height:16px;
+  display:inline-block;
+  vertical-align:middle;
+}
+footer{
+  margin-top:30px;
+  padding:18px;
+  background:#222;
+  color:#fff;
+  text-align:center;
+  font-size:13px;
+  border-top:1px solid rgba(255,255,255,0.03);
+}
+@media(max-width:560px){
+  .card .imgwrap{height:150px;}
+  .grid{
+    grid-template-columns:repeat(2, 1fr); /* 2 items per line on mobile */
+  }
+}
+</style>
+</head>
+<body>
+
+<header>EASY MECH - Handymen</header>
+
+<div class="wrap">
+  <div class="search">
+    <input id="search" placeholder="Search by name, type, town or region" />
+  </div>
+
+  <div id="grid" class="grid"></div>
+</div>
+
+<footer>© 2025 EASY MECH — All rights reserved</footer>
+
+<script>
+const SHEET_ID = '1YRnpw6GJ8c2pZMYTofrYYLJBweWkR1qWvjmucI5_-k8';
+const GVIZ = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json`;
+const FALLBACK_IMAGE = '/mnt/data/Capture.PNG';
+
+function fixImage(link){
+  if(!link) return FALLBACK_IMAGE;
+  if(link.includes('drive.google.com')){
+    const m = link.match(/\/d\/([a-zA-Z0-9_-]+)/);
+    if(m) return `https://drive.google.com/uc?export=view&id=${m[1]}`;
+  }
+  return link;
+}
+function nowHour(){ return new Date().getHours(); }
+function isOpen(openVal, closeVal){
+  const open = Number(openVal);
+  const close = Number(closeVal);
+  if(isNaN(open) || isNaN(close)) return false;
+  const h = nowHour();
+  if(open <= close) return h >= open && h < close;
+  return (h >= open && h <= 23) || (h >= 0 && h < close);
+}
+function escapeHtml(s){ return (s||'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function normalize(s){ return (s||'').toString().trim().toLowerCase(); }
+
+let rows = [];
+fetch(GVIZ)
+.then(r=>r.text())
+.then(t=>{
+  const json = JSON.parse(t.substr(47).slice(0,-2));
+  const cols = (json.table.cols||[]).map(c => (c.label||'').toString().trim().toLowerCase());
+  const rawRows = json.table.rows || [];
+  rows = rawRows.map(r => {
+    const obj = {};
+    (r.c||[]).forEach((cell,i)=>{ obj[cols[i] || `col${i}`] = cell ? cell.v : ''; });
+    return obj;
+  });
+  render(rows);
+})
+.catch(err=>{
+  console.error(err);
+  document.getElementById('grid').innerText = 'Failed to load data';
+});
+
+function render(data){
+  const container = document.getElementById('grid');
+  container.innerHTML = '';
+  data.forEach((item, idx) => {
+    const name = item['name'] || item['title'] || item['full name'] || '';
+    const type = item['type'] || item['category'] || item['profession'] || '';
+    const img = fixImage(item['image'] || item['img'] || item['photo'] || '');
+    const region = item['region'] || item['province'] || '';
+    const town = item['town'] || item['city'] || '';
+    const opening = item['opening'] || item['open'] || item['start'] || '';
+    const closing = item['closing'] || item['close'] || item['end'] || '';
+
+    const opened = isOpen(opening, closing);
+
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.onclick = () => location.href = `item.html?id=${idx}`;
+
+    const imgwrap = document.createElement('div');
+    imgwrap.className = 'imgwrap';
+
+    const imageEl = document.createElement('img');
+    imageEl.src = img || FALLBACK_IMAGE;
+    imageEl.alt = name || 'Handyman';
+
+    const badge = document.createElement('div');
+    badge.className = 'status-badge ' + (opened ? 'status-open' : 'status-closed');
+    badge.innerText = opened ? 'Opened' : 'Closed';
+
+    imgwrap.appendChild(imageEl);
+    imgwrap.appendChild(badge);
+
+    const info = document.createElement('div');
+    info.className = 'info';
+
+    const h3 = document.createElement('h3'); h3.innerText = name;
+    const pType = document.createElement('p'); pType.innerText = type;
+    const pLoc = document.createElement('p'); pLoc.className = 'location';
+    pLoc.innerHTML = svgLocation() + '<span>' + escapeHtml(town) + (town && region ? ', ' : '') + escapeHtml(region) + '</span>';
+
+    info.appendChild(h3);
+    info.appendChild(pType);
+    info.appendChild(pLoc);
+
+    card.appendChild(imgwrap);
+    card.appendChild(info);
+    container.appendChild(card);
+  });
+}
+
+document.getElementById('search').addEventListener('input', e=>{
+  const q = normalize(e.target.value);
+  if(!q) return render(rows);
+  const filtered = rows.filter(item => {
+    return (normalize(item['name'])||'').includes(q)
+      || (normalize(item['type'])||'').includes(q)
+      || (normalize(item['region'])||'').includes(q)
+      || (normalize(item['town'])||'').includes(q)
+      || (normalize(item['city'])||'').includes(q)
+      || (normalize(item['province'])||'').includes(q);
+  });
+  render(filtered);
+});
+
+function svgLocation(){
+  return `<svg class="loc-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M12 11.5a2 2 0 100-4 2 2 0 000 4z" fill="#6b7280"/>
+    <path d="M12 2a6 6 0 00-6 6c0 5.25 6 12 6 12s6-6.75 6-12a6 6 0 00-6-6z" stroke="#6b7280" stroke-width="1" fill="none"/>
+  </svg>`;
+}
+</script>
+</body>
+</html>
