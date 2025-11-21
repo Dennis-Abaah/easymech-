@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>EASY MECH - Profile</title>
+<style>
+:root{
+  --primary:#0b63ce;
+  --accent:#ff6a00;
+  --open-green:#22c55e;
+  --closed-orange:#f59e0b;
+}
+body{
+  margin:0;
+  font-family:Inter,Arial,Helvetica,sans-serif;
+  background:#48426D;
+  padding-top:56px;
+  color:#111;
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+}
+header{
+  position:fixed;
+  top:0; left:0; right:0;
+  height:55px;
+  background:var(--primary);
+  background-color:#312C51  ;
+  color:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:20px;
+  font-weight:700;
+  box-shadow:0 2px 10px rgba(0,0,0,.12);
+  z-index:999;
+}
+.back{
+  position:fixed;
+  left:12px;
+  top:12px;
+  background:var(--accent);
+  background-color: #F0C38E;
+  color:#fff;
+  padding:8px 12px;
+  border-radius:8px;
+  text-decoration:none;
+  z-index:1000;
+}
+.wrap{
+  max-width:980px;
+  height: auto;
+  margin:22px auto 0 auto;
+  padding:18px;
+  padding-bottom:80px; /* enough space above footer */
+  background:#F0C38E;
+  border-radius:12px;
+  box-shadow:0 6px 20px rgba(0,0,0,.08);
+}
+.imgbox{
+  width:100%;
+  height:100%;
+  overflow:hidden;
+  border-radius:10px;
+  position:relative;
+  background-color:#F0C38E;
+}
+.imgbox img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+  background-color: #F0C38E;
+}
+.status{
+  position:absolute;
+  left:14px;
+  top:14px;
+  padding:8px 12px;
+  border-radius:8px;
+  color:#fff;
+  font-weight:700;
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  box-shadow:0 6px 18px rgba(0,0,0,0.12);
+}
+.status.open{background:var(--open-green);}
+.status.closed{background:var(--closed-orange);}
+.content{
+  padding:18px 2px;
+}
+h1{
+  margin:16px 0 8px;
+  font-size:26px;
+}
+.meta{
+  color:#444;
+  margin:8px 0;
+  font-size:15px;
+}
+.meta .loc{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  color:#6b7280;
+}
+.description{
+  margin-top:12px;
+  color:#333;
+  font-size:15px;
+  line-height:1.5;
+}
+.buttons{
+  display:flex;
+  gap:12px;
+  margin-top:18px;
+  flex-wrap:wrap;
+}
+.btn{
+  flex:1;
+  min-width:140px;
+  padding:12px 14px;
+  border-radius:8px;
+  text-decoration:none;
+  color:#fff;
+  font-weight:700;
+  display:inline-flex;
+  align-items:center;
+  gap:10px;
+  justify-content:center;
+}
+.call{background:#312C51;}
+.wa{background:#312C51;}
+footer{
+  padding:14px;
+  background:#222;
+  color:#fff;
+  text-align:center;
+  margin-top:auto; /* stick to bottom */
+}
+@media(max-width:860px){
+  .imgbox{height:260px;}
+  h1{font-size:22px;}
+}
+</style>
+</head>
+<body>
+<header>EASY MECH - Profile</header>
+<a class="back" href="index.html"> < </a>
+
+<div id="wrap" class="wrap">
+  <div class="imgbox" id="imgbox">
+    <img id="profileImg" src="" alt="profile">
+  </div>
+
+  <div class="content">
+    <h1 id="name">Loading...</h1>
+    <div class="meta"><strong>Type:</strong> <span id="type"></span></div>
+    <div class="meta loc">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+        <path d="M12 11.5a2 2 0 100-4 2 2 0 000 4z" fill="#6b7280"/>
+        <path d="M12 2a6 6 0 00-6 6c0 5.25 6 12 6 12s6-6.75 6-12a6 6 0 00-6-6z" stroke="#6b7280" stroke-width="1" fill="none"/>
+      </svg> 
+      <span id="location"></span>
+    </div>
+    <div class="meta"><strong>Hours:</strong> <span id="open"></span> — <span id="close"></span></div>
+    <div class="description" id="description"></div>
+    <div id="buttons" class="buttons"></div>
+  </div>
+</div>
+
+<footer>© 2025 EASY MECH</footer>
+
+<script>
+const SHEET_ID = '1YRnpw6GJ8c2pZMYTofrYYLJBweWkR1qWvjmucI5_-k8';
+const GVIZ = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json`;
+const idx = new URLSearchParams(location.search).get('id');
+const FALLBACK_IMAGE = '/mnt/data/Capture.PNG';
+
+function fixImage(link){
+  if(!link) return FALLBACK_IMAGE;
+  if(link.includes('drive.google.com')){
+    const m = link.match(/\/d\/([a-zA-Z0-9_-]+)/);
+    if(m) return `https://drive.google.com/uc?export=view&id=${m[1]}`;
+  }
+  return link;
+}
+function nowHour(){ return new Date().getHours(); }
+function isOpen(o,c){
+  const open = Number(o), close = Number(c);
+  if(isNaN(open) || isNaN(close)) return false;
+  const h = nowHour();
+  if(open <= close) return h >= open && h < close;
+  return (h >= open && h <= 23) || (h >= 0 && h < close);
+}
+
+fetch(GVIZ)
+.then(r=>r.text())
+.then(t=>{
+  const json = JSON.parse(t.substr(47).slice(0,-2));
+  const cols = (json.table.cols||[]).map(c=> (c.label||'').toString().trim().toLowerCase());
+  const rows = json.table.rows || [];
+  const r = rows[idx];
+  if(!r){ document.getElementById('name').innerText='Not found'; return; }
+
+  const obj = {};
+  (r.c||[]).forEach((cell,i)=> obj[cols[i]||`col${i}`] = cell ? cell.v : '');
+
+  const name = obj['name'] || obj['title'] || obj['full name'] || '';
+  const type = obj['type'] || obj['category'] || obj['profession'] || '';
+  const description = obj['description'] || '';
+  const image = fixImage(obj['image'] || obj['img'] || obj['photo'] || '');
+  const opening = obj['opening'] || obj['open'] || obj['start'] || '';
+  const closing = obj['closing'] || obj['close'] || obj['end'] || '';
+  const region = obj['region'] || obj['province'] || '';
+  const town = obj['town'] || obj['city'] || '';
+  const whatsapp = obj['whatsapp'] || obj['whatsapp contact'] || obj['wa'] || '';
+  let callNo = obj['call contact'] || obj['contact'] || obj['phone'] || obj['mobile'] || obj['phone number'] || obj['contact number'] || '';
+
+  document.getElementById('profileImg').src = image || FALLBACK_IMAGE;
+  document.getElementById('name').innerText = name || '—';
+  document.getElementById('type').innerText = type || '—';
+  document.getElementById('location').innerText = (town || '') + ((town && region) ? ', ' : '') + (region || '');
+  document.getElementById('open').innerText = (opening || '—') + ':00';
+  document.getElementById('close').innerText = (closing || '—') + ':00';
+  document.getElementById('description').innerText = description;
+
+  const openNow = isOpen(opening, closing);
+  const badge = document.createElement('div');
+  badge.className = 'status ' + (openNow ? 'open' : 'closed');
+  badge.innerText = openNow ? 'Opened' : 'Closed';
+  document.getElementById('imgbox').appendChild(badge);
+
+  const btnWrap = document.getElementById('buttons');
+  const telNum = callNo.toString().replace(/[^\d+]/g,'');
+  if(telNum){
+    const a = document.createElement('a');
+    a.className='btn call';
+    a.href=`tel:${telNum}`;
+    a.innerHTML='📞 Call Service';
+    btnWrap.appendChild(a);
+  }
+  if(whatsapp){
+    const w = document.createElement('a');
+    w.className='btn wa';
+    w.href=`https://wa.me/${whatsapp}?text=${encodeURIComponent('Hello, I am interested in your services: '+(name||''))}`;
+    w.target='_blank';
+    w.innerHTML='💬 WhatsApp';
+    btnWrap.appendChild(w);
+  }
+})
+.catch(e=>{ console.error(e); document.getElementById('name').innerText='Failed to load'; });
+</script>
+</body>
+</html>
